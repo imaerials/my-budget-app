@@ -1,18 +1,59 @@
 const BASE = '/api';
 
-async function request(path, options = {}) {
+// Module-level token — set by AuthContext after login/refresh
+let _accessToken = null;
+let _onUnauthorized = null;
+
+export function setAccessToken(token) { _accessToken = token; }
+export function setUnauthorizedHandler(fn) { _onUnauthorized = fn; }
+
+async function request(path, options = {}, _retry = false) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers,
+    credentials: 'include',
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+
+  // Token expired — try a silent refresh once
+  if (res.status === 401 && !_retry) {
+    const refreshed = await silentRefresh();
+    if (refreshed) return request(path, options, true);
+    _onUnauthorized?.();
+    return;
+  }
+
   if (res.status === 204) return null;
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
+async function silentRefresh() {
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) return false;
+    const { accessToken } = await res.json();
+    setAccessToken(accessToken);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const api = {
+  // Auth
+  register: (body) => request('/auth/register', { method: 'POST', body }),
+  login: (body) => request('/auth/login', { method: 'POST', body }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
+  me: () => request('/auth/me'),
+
   // Accounts
   getAccounts: () => request('/accounts'),
   createAccount: (body) => request('/accounts', { method: 'POST', body }),

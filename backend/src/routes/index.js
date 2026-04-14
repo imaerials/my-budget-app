@@ -4,8 +4,22 @@ import * as categories from '../controllers/categories.js';
 import * as transactions from '../controllers/transactions.js';
 import * as budgets from '../controllers/budgets.js';
 import * as reports from '../controllers/reports.js';
+import * as auth from '../controllers/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
+
+// ── Public auth routes ────────────────────────────────────────────────────────
+router.post('/auth/register', auth.register);
+router.post('/auth/login', auth.login);
+router.post('/auth/refresh', auth.refresh);
+router.post('/auth/logout', auth.logout);
+
+// ── All routes below require a valid access token ────────────────────────────
+router.use(authenticateToken);
+
+// Current user
+router.get('/auth/me', auth.me);
 
 // Accounts
 router.get('/accounts', accounts.listAccounts);

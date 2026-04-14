@@ -1,27 +1,40 @@
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp, LogOut, User } from 'lucide-react';
 import clsx from 'clsx';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui/Button';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/transactions', label: 'Transacciones', icon: ArrowLeftRight },
-  { to: '/budgets', label: 'Presupuestos', icon: Wallet },
-  { to: '/accounts', label: 'Cuentas', icon: TrendingUp },
-  { to: '/categories', label: 'Categorías', icon: Tag },
-  { to: '/reports', label: 'Reportes', icon: PieChart },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/budgets', label: 'Budgets', icon: Wallet },
+  { to: '/accounts', label: 'Accounts', icon: TrendingUp },
+  { to: '/categories', label: 'Categories', icon: Tag },
+  { to: '/reports', label: 'Reports', icon: PieChart },
 ];
 
 export default function Navbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 flex items-center h-14 gap-1">
-        <div className="flex items-center gap-2 mr-6">
+        {/* Logo */}
+        <div className="flex items-center gap-2 mr-6 shrink-0">
           <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
             <Wallet size={14} className="text-white" />
           </div>
           <span className="font-bold text-gray-900 text-sm">MyBudget</span>
         </div>
-        <nav className="flex items-center gap-0.5 overflow-x-auto">
+
+        {/* Nav links */}
+        <nav className="flex items-center gap-0.5 overflow-x-auto flex-1">
           {links.map(({ to, label, icon: Icon, exact }) => (
             <NavLink
               key={to}
@@ -41,6 +54,20 @@ export default function Navbar() {
             </NavLink>
           ))}
         </nav>
+
+        {/* User section */}
+        {user && (
+          <div className="flex items-center gap-2 ml-2 shrink-0">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600 px-2">
+              <User size={14} className="text-gray-400" />
+              <span className="hidden sm:inline max-w-[120px] truncate">{user.name || user.email}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
+              <LogOut size={14} />
+              <span className="hidden sm:inline">Sign out</span>
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );

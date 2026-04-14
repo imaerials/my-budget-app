@@ -8,10 +8,13 @@
     "seed": "node src/db/seed.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^9.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.0.1",
-    "express-validator": "^7.2.0"
+    "express-validator": "^7.2.0",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8"
