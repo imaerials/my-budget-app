@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp, LogOut, User, Wrench } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
@@ -11,6 +11,7 @@ const links = [
   { to: '/accounts', label: 'Accounts', icon: TrendingUp },
   { to: '/categories', label: 'Categories', icon: Tag },
   { to: '/reports', label: 'Reports', icon: PieChart },
+  { to: '/tools', label: 'Tools', icon: Wrench },
 ];
 
 export default function Navbar() {

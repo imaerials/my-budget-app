@@ -5,6 +5,7 @@ import * as transactions from '../controllers/transactions.js';
 import * as budgets from '../controllers/budgets.js';
 import * as reports from '../controllers/reports.js';
 import * as auth from '../controllers/auth.js';
+import * as splits from '../controllers/splits.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
@@ -52,5 +53,21 @@ router.get('/reports/dashboard', reports.dashboardStats);
 router.get('/reports/monthly', reports.monthlySummary);
 router.get('/reports/categories', reports.categoryBreakdown);
 router.get('/reports/trend', reports.last30DaysTrend);
+
+// ── Tools: Expense Splitter ──────────────────────────────────────────────────
+router.get('/splits', splits.listGroups);
+router.post('/splits', splits.createGroup);
+router.get('/splits/:id', splits.getGroup);
+router.put('/splits/:id', splits.updateGroup);
+router.delete('/splits/:id', splits.deleteGroup);
+
+router.post('/splits/:id/members', splits.addMember);
+router.delete('/splits/:id/members/:mid', splits.removeMember);
+
+router.post('/splits/:id/expenses', splits.addExpense);
+router.delete('/splits/:id/expenses/:eid', splits.deleteExpense);
+
+router.post('/splits/:id/settlements', splits.addSettlement);
+router.delete('/splits/:id/settlements/:sid', splits.deleteSettlement);
 
 export default router;

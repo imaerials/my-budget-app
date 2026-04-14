@@ -77,6 +77,22 @@ export const api = {
   upsertBudget: (body) => request('/budgets', { method: 'POST', body }),
   deleteBudget: (id) => request(`/budgets/${id}`, { method: 'DELETE' }),
 
+  // Splits
+  getSplitGroups: () => request('/splits'),
+  createSplitGroup: (body) => request('/splits', { method: 'POST', body }),
+  getSplitGroup: (id) => request(`/splits/${id}`),
+  updateSplitGroup: (id, body) => request(`/splits/${id}`, { method: 'PUT', body }),
+  deleteSplitGroup: (id) => request(`/splits/${id}`, { method: 'DELETE' }),
+
+  addSplitMember: (groupId, body) => request(`/splits/${groupId}/members`, { method: 'POST', body }),
+  removeSplitMember: (groupId, mid) => request(`/splits/${groupId}/members/${mid}`, { method: 'DELETE' }),
+
+  addSplitExpense: (groupId, body) => request(`/splits/${groupId}/expenses`, { method: 'POST', body }),
+  deleteSplitExpense: (groupId, eid) => request(`/splits/${groupId}/expenses/${eid}`, { method: 'DELETE' }),
+
+  addSettlement: (groupId, body) => request(`/splits/${groupId}/settlements`, { method: 'POST', body }),
+  deleteSettlement: (groupId, sid) => request(`/splits/${groupId}/settlements/${sid}`, { method: 'DELETE' }),
+
   // Reports
   getDashboard: () => request('/reports/dashboard'),
   getMonthlySummary: (params) => request('/reports/monthly' + toQuery(params)),

@@ -8,6 +8,7 @@ import Categories from './pages/Categories';
 import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Reports from './pages/Reports';
+import Tools from './pages/Tools';
 import Login from './pages/Login';
 
 function ProtectedRoute({ children }) {
@@ -57,6 +58,7 @@ function AppRoutes() {
                   <Route path="/accounts" element={<Accounts />} />
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/tools" element={<Tools />} />
                 </Routes>
               </main>
             </div>
