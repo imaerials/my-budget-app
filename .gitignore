@@ -15,3 +15,4 @@ coverage/
 backend/budget.db
 *.db-wal
 *.db-shm
+backend/budget.db*
