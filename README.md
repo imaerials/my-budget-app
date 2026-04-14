@@ -1,6 +1,6 @@
 # MyBudget App
 
-A full-stack personal finance management web application. Track income and expenses, organize by categories, set monthly budgets, and visualize your finances through charts and reports.
+A full-stack and easy personal finance management web application. Track income and expenses, organize by categories, set monthly budgets, and visualize your finances through charts and reports.
 
 ## Tech Stack
 
