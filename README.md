@@ -1,6 +1,6 @@
 # MyBudget App
 
-A full-stack and easy personal finance management web application. Track income and expenses, organize by categories, set monthly budgets, and visualize your finances through charts and reports.
+A full-stack and easy personal finance management web application. Track income and expenses, organize by categories, set monthly budgets, visualize your finances through charts and reports, and split bills with friends.
 
 ## Tech Stack
 
@@ -25,6 +25,7 @@ A full-stack and easy personal finance management web application. Track income 
 - **Accounts** — Multiple accounts (checking, savings, cash, credit, investment) with balance calculated from transactions.
 - **Categories** — Income and expense categories with customizable colors. Ships with 13 default categories.
 - **Reports** — Annual comparison with monthly table, savings rate, best month of the year, and category breakdown split by income/expenses.
+- **Tools: Expense Splitter** — Split bills among friends, trips, or flatmates. Tracks who paid what, calculates net balances, and suggests the minimum number of payments to settle all debts.
 
 ---
 
@@ -48,7 +49,8 @@ my-budget-app/
 │       │   ├── categories.js
 │       │   ├── transactions.js
 │       │   ├── budgets.js
-│       │   └── reports.js
+│       │   ├── reports.js
+│       │   └── splits.js           # Expense splitter logic + debt simplification
 │       └── middleware/
 │           ├── auth.js             # authenticateToken (JWT guard)
 │           └── errorHandler.js
@@ -72,7 +74,11 @@ my-budget-app/
             ├── Budgets.jsx
             ├── Accounts.jsx
             ├── Categories.jsx
-            └── Reports.jsx
+            ├── Reports.jsx
+            ├── Tools.jsx           # Tool launcher (extensible)
+            └── tools/
+                ├── Splitter.jsx        # Group list + create group
+                └── SplitGroupDetail.jsx # Expenses · Balances · Settlements · Members
 ```
 
 ---
@@ -202,6 +208,21 @@ Authorization: Bearer <accessToken>
 | GET | `/reports/categories?type=&month=&year=` | Totals grouped by category |
 | GET | `/reports/trend` | Daily movements for the last 30 days |
 
+### Expense Splitter
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/splits` | List all groups |
+| POST | `/splits` | Create group |
+| GET | `/splits/:id` | Group detail with members, expenses, balances, and settlement suggestions |
+| PUT | `/splits/:id` | Update group |
+| DELETE | `/splits/:id` | Delete group (cascades everything) |
+| POST | `/splits/:id/members` | Add member to group |
+| DELETE | `/splits/:id/members/:mid` | Remove member (blocked if they have paid expenses) |
+| POST | `/splits/:id/expenses` | Add expense — equal or custom split |
+| DELETE | `/splits/:id/expenses/:eid` | Delete expense |
+| POST | `/splits/:id/settlements` | Record a payment between members |
+| DELETE | `/splits/:id/settlements/:sid` | Delete a settlement |
+
 ---
 
 ## Database
@@ -209,15 +230,49 @@ Authorization: Bearer <accessToken>
 The `backend/budget.db` file is created automatically on first run. Schema:
 
 ```
-users          — id, name, email, password_hash, created_at
-refresh_tokens — id, user_id, token, expires_at, created_at
-accounts       — id, name, type, balance, currency, color
-categories     — id, name, type, color, icon
-transactions   — id, account_id, category_id, amount, type, description, date, notes
-budgets        — id, category_id, amount, month, year  (unique per category + month + year)
+users              — id, name, email, password_hash, created_at
+refresh_tokens     — id, user_id, token, expires_at, created_at
+accounts           — id, name, type, balance, currency, color
+categories         — id, name, type, color, icon
+transactions       — id, account_id, category_id, amount, type, description, date, notes
+budgets            — id, category_id, amount, month, year  (unique per category + month + year)
+split_groups       — id, name, description, currency, created_at
+split_members      — id, group_id, name, created_at
+split_expenses     — id, group_id, paid_by, description, amount, date, created_at
+split_shares       — id, expense_id, member_id, amount  (unique per expense + member)
+split_settlements  — id, group_id, from_member_id, to_member_id, amount, date, note
 ```
 
 SQLite runs in **WAL mode** with `foreign_keys = ON`.
+
+---
+
+## Expense Splitter — How it works
+
+```
+1. Create a group (e.g. "Barcelona Trip") with a list of members
+
+2. Add expenses — who paid and how to split:
+   - Equally among all members
+   - Custom amount per member
+
+3. The app calculates each person's net balance:
+   net = total paid − total owed across all expenses
+
+4. Debt simplification algorithm finds the minimum number
+   of payments to settle all balances:
+
+   Example — 3 people, 2 expenses:
+   Alice paid $120 (Hotel, split 3 ways) → net +$60
+   Bob   paid $60  (Dinner, split 3 ways) → net  $0
+   Carol paid $0                          → net -$60
+
+   Suggestion: Carol → Alice $60  (1 payment settles everything)
+
+5. Record payments as settlements to mark debts as paid
+```
+
+---
 
 ## Auth flow
 
