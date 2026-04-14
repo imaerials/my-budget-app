@@ -8,8 +8,8 @@ import { Input } from '../components/ui/Input';
 export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [mode, setMode] = useState('login');
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,6 +18,12 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (mode === 'register' && form.password !== form.confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === 'login') {
@@ -36,8 +42,10 @@ export default function Login() {
   const switchMode = () => {
     setMode((m) => (m === 'login' ? 'register' : 'login'));
     setError('');
-    setForm({ name: '', email: '', password: '' });
+    setForm({ name: '', email: '', password: '', confirm: '' });
   };
+
+  const passwordMismatch = mode === 'register' && form.confirm && form.password !== form.confirm;
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -101,6 +109,17 @@ export default function Login() {
               value={form.password}
               onChange={set('password')}
             />
+            {mode === 'register' && (
+              <Input
+                label="Confirm password"
+                type="password"
+                placeholder="Repeat your password"
+                required
+                value={form.confirm}
+                onChange={set('confirm')}
+                error={passwordMismatch ? 'Passwords do not match' : ''}
+              />
+            )}
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -108,7 +127,11 @@ export default function Login() {
               </p>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full justify-center">
+            <Button
+              type="submit"
+              disabled={loading || passwordMismatch}
+              className="w-full justify-center"
+            >
               {loading
                 ? 'Please wait…'
                 : mode === 'login' ? 'Sign in' : 'Create account'}
