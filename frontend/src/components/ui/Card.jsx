@@ -3,7 +3,7 @@ import clsx from 'clsx';
 export function Card({ children, className, ...props }) {
   return (
     <div
-      className={clsx('bg-slate-800 border border-slate-700 rounded-xl p-5', className)}
+      className={clsx('bg-white shadow-md border border-gray-200 rounded-lg p-6', className)}
       {...props}
     >
       {children}
@@ -13,7 +13,7 @@ export function Card({ children, className, ...props }) {
 
 export function CardTitle({ children, className }) {
   return (
-    <h3 className={clsx('text-sm font-medium text-slate-400 mb-1', className)}>
+    <h3 className={clsx('text-lg font-semibold text-gray-800 mb-2', className)}>
       {children}
     </h3>
   );

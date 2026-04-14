@@ -19,9 +19,10 @@ export function Button({ children, variant = 'primary', size = 'md', className, 
   return (
     <button
       className={clsx(
-        'inline-flex items-center gap-2 rounded-lg font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+        'rounded font-medium focus:outline-none focus:ring-2 focus:ring-offset-2',
         variants[variant],
         sizes[size],
+        disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
       disabled={disabled}

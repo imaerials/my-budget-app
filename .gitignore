@@ -13,3 +13,5 @@ pnpm-debug.log*
 coverage/
 *.tgz
 backend/budget.db
+*.db-wal
+*.db-shm
