@@ -106,13 +106,36 @@ npm install --prefix backend
 npm install --prefix frontend
 ```
 
-### 2. Seed the database (default categories + account)
+### 2. Configure environment variables
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Edit `backend/.env` and set your own secrets:
+
+```env
+NODE_ENV=development
+PORT=3001
+
+ACCESS_TOKEN_SECRET=your-strong-random-secret-here
+REFRESH_TOKEN_SECRET=another-strong-random-secret-here
+```
+
+To generate a secure secret:
+```bash
+node -e "require('crypto').randomBytes(32).toString('hex')|console.log"
+```
+
+> `backend/.env` is gitignored and never committed. `backend/.env.example` is the safe-to-commit template.
+
+### 3. Seed the database (default categories + account)
 
 ```bash
 npm run seed
 ```
 
-### 3. Start in development mode
+### 4. Start in development mode
 
 ```bash
 npm run dev
@@ -136,16 +159,16 @@ npm run dev:ui     # Frontend only
 npm run seed       # Seed the database with default categories
 ```
 
-### Environment variables (optional)
+### Environment variables
 
-By default the app runs with built-in development secrets. For production, set these in a `.env` file inside `backend/`:
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ACCESS_TOKEN_SECRET` | Yes | hardcoded dev value | Signs JWT access tokens (15 min) |
+| `REFRESH_TOKEN_SECRET` | Yes | hardcoded dev value | Signs JWT refresh tokens (7 days) |
+| `PORT` | No | `3001` | Port the API listens on |
+| `NODE_ENV` | No | `development` | Set to `production` to enable secure cookies |
 
-```env
-ACCESS_TOKEN_SECRET=your-strong-random-secret
-REFRESH_TOKEN_SECRET=another-strong-random-secret
-PORT=3001
-NODE_ENV=production
-```
+> **Never use the default secrets in production.** The app will work without a `.env` file in development, but the tokens will be signed with a publicly known key.
 
 ---
 

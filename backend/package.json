@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
-    "seed": "node src/db/seed.js"
+    "dev": "node --watch --env-file=.env src/index.js",
+    "start": "node --env-file=.env src/index.js",
+    "seed": "node --env-file=.env src/db/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

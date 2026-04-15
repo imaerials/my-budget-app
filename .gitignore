@@ -3,6 +3,8 @@ dist/
 .vite/
 .env
 .env.*.local
+**/.env
+**/.env.local
 .DS_Store
 *.log
 npm-debug.log*
