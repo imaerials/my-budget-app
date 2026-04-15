@@ -3,18 +3,12 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import routes from './routes/index.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import { getDb } from './db/schema.js';
+import { initSchema } from './db/schema.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Init DB on startup
-getDb();
-
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true,
-}));
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -24,6 +18,5 @@ app.use('/api', routes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Budget API running on http://localhost:${PORT}`);
-});
+await initSchema();
+app.listen(PORT, () => console.log(`Budget API running on http://localhost:${PORT}`));

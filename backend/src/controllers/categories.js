@@ -1,55 +1,46 @@
-import { getDb } from '../db/schema.js';
+import pool from '../db/pool.js';
 
-export function listCategories(req, res) {
-  const db = getDb();
+export async function listCategories(req, res) {
   const { type } = req.query;
-  let query = 'SELECT * FROM categories';
-  const params = [];
-  if (type) {
-    query += ' WHERE type = ?';
-    params.push(type);
-  }
-  query += ' ORDER BY type, name';
-  res.json(db.prepare(query).all(...params));
+  const { rows } = type
+    ? await pool.query('SELECT * FROM categories WHERE type = $1 ORDER BY type, name', [type])
+    : await pool.query('SELECT * FROM categories ORDER BY type, name');
+  res.json(rows);
 }
 
-export function getCategory(req, res) {
-  const db = getDb();
-  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
-  if (!cat) return res.status(404).json({ error: 'Category not found' });
-  res.json(cat);
+export async function getCategory(req, res) {
+  const { rows } = await pool.query('SELECT * FROM categories WHERE id = $1', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Category not found' });
+  res.json(rows[0]);
 }
 
-export function createCategory(req, res) {
-  const db = getDb();
+export async function createCategory(req, res) {
   const { name, type, color = '#6366f1', icon = 'circle' } = req.body;
   if (!name || !type) return res.status(400).json({ error: 'name and type are required' });
-  const result = db.prepare(
-    'INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)'
-  ).run(name, type, color, icon);
-  res.status(201).json(db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid));
+  const { rows } = await pool.query(
+    'INSERT INTO categories (name, type, color, icon) VALUES ($1,$2,$3,$4) RETURNING *',
+    [name, type, color, icon]
+  );
+  res.status(201).json(rows[0]);
 }
 
-export function updateCategory(req, res) {
-  const db = getDb();
+export async function updateCategory(req, res) {
   const { name, type, color, icon } = req.body;
-  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
-  if (!cat) return res.status(404).json({ error: 'Category not found' });
-  db.prepare(`
+  const { rows: existing } = await pool.query('SELECT id FROM categories WHERE id = $1', [req.params.id]);
+  if (!existing[0]) return res.status(404).json({ error: 'Category not found' });
+  const { rows } = await pool.query(`
     UPDATE categories SET
-      name = COALESCE(?, name),
-      type = COALESCE(?, type),
-      color = COALESCE(?, color),
-      icon = COALESCE(?, icon)
-    WHERE id = ?
-  `).run(name, type, color, icon, req.params.id);
-  res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id));
+      name  = COALESCE($1, name),
+      type  = COALESCE($2, type),
+      color = COALESCE($3, color),
+      icon  = COALESCE($4, icon)
+    WHERE id = $5 RETURNING *
+  `, [name, type, color, icon, req.params.id]);
+  res.json(rows[0]);
 }
 
-export function deleteCategory(req, res) {
-  const db = getDb();
-  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
-  if (!cat) return res.status(404).json({ error: 'Category not found' });
-  db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+export async function deleteCategory(req, res) {
+  const { rows } = await pool.query('DELETE FROM categories WHERE id = $1 RETURNING id', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Category not found' });
   res.status(204).end();
 }

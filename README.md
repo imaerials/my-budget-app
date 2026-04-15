@@ -10,7 +10,8 @@ A full-stack and easy personal finance management web application. Track income 
 | Charts | Recharts 3 |
 | Routing | React Router 7 |
 | Backend | Node.js + Express 5 |
-| Database | SQLite (better-sqlite3) |
+| Database | PostgreSQL 16 |
+| Container | Docker + Docker Compose |
 | Auth | JWT (access + refresh tokens) + bcryptjs |
 | Icons | Lucide React |
 
@@ -34,12 +35,18 @@ A full-stack and easy personal finance management web application. Track income 
 ```
 my-budget-app/
 ├── package.json                    # Root scripts (starts both servers)
+├── docker-compose.yml              # Production stack (db + backend + frontend)
+├── docker-compose.dev.yml          # Dev: PostgreSQL only (port 5432 exposed)
+├── .env.example                    # Root env template for Docker Compose
 ├── backend/
+│   ├── Dockerfile
 │   ├── package.json
+│   ├── .env.example
 │   └── src/
 │       ├── index.js                # Express 5 server
 │       ├── db/
-│       │   ├── schema.js           # SQLite schema + initialization
+│       │   ├── pool.js             # pg.Pool singleton with type parsers
+│       │   ├── schema.js           # PostgreSQL schema + initialization
 │       │   └── seed.js             # Default categories + account
 │       ├── routes/
 │       │   └── index.js            # All REST routes
@@ -55,6 +62,8 @@ my-budget-app/
 │           ├── auth.js             # authenticateToken (JWT guard)
 │           └── errorHandler.js
 └── frontend/
+    ├── Dockerfile                  # Multi-stage: node build + nginx serve
+    ├── nginx.conf                  # SPA fallback + /api proxy to backend
     ├── vite.config.js              # Proxy /api → localhost:3001
     └── src/
         ├── App.jsx                 # AuthProvider + ProtectedRoute + routing
@@ -87,8 +96,15 @@ my-budget-app/
 
 ### Requirements
 
-- Node.js 18 or higher
+- Node.js 20 or higher
 - npm 9 or higher
+- PostgreSQL 14 or higher (or use Docker)
+
+### Option A — Docker (recommended)
+
+See the [Docker section](#docker) below to run the entire stack with a single command.
+
+### Option B — Local development
 
 ### 1. Clone and install dependencies
 
@@ -112,19 +128,21 @@ npm install --prefix frontend
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env` and set your own secrets:
+Edit `backend/.env`:
 
 ```env
 NODE_ENV=development
 PORT=3001
 
+DATABASE_URL=postgresql://postgres:password@localhost:5432/mybudget
+
 ACCESS_TOKEN_SECRET=your-strong-random-secret-here
 REFRESH_TOKEN_SECRET=another-strong-random-secret-here
 ```
 
-To generate a secure secret:
+To generate secure secrets:
 ```bash
-node -e "require('crypto').randomBytes(32).toString('hex')|console.log"
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 > `backend/.env` is gitignored and never committed. `backend/.env.example` is the safe-to-commit template.
@@ -163,6 +181,7 @@ npm run seed       # Seed the database with default categories
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `ACCESS_TOKEN_SECRET` | Yes | hardcoded dev value | Signs JWT access tokens (15 min) |
 | `REFRESH_TOKEN_SECRET` | Yes | hardcoded dev value | Signs JWT refresh tokens (7 days) |
 | `PORT` | No | `3001` | Port the API listens on |
@@ -250,7 +269,7 @@ Authorization: Bearer <accessToken>
 
 ## Database
 
-The `backend/budget.db` file is created automatically on first run. Schema:
+PostgreSQL 16. The schema is created automatically on first run via `initSchema()` in `src/db/schema.js`.
 
 ```
 users              — id, name, email, password_hash, created_at
@@ -266,7 +285,57 @@ split_shares       — id, expense_id, member_id, amount  (unique per expense + 
 split_settlements  — id, group_id, from_member_id, to_member_id, amount, date, note
 ```
 
-SQLite runs in **WAL mode** with `foreign_keys = ON`.
+All monetary columns use `NUMERIC(15,2)`. Dates use `DATE`. Timestamps use `TIMESTAMPTZ`.
+
+---
+
+## Docker
+
+### Files
+
+| File | Description |
+|------|-------------|
+| `docker-compose.yml` | Production stack: PostgreSQL + backend + frontend (nginx) |
+| `docker-compose.dev.yml` | Dev: PostgreSQL only, port 5432 exposed |
+| `backend/Dockerfile` | `node:22-alpine`, production deps, `node src/index.js` |
+| `frontend/Dockerfile` | Multi-stage — `node:22-alpine` build → `nginx:alpine` serve |
+| `frontend/nginx.conf` | SPA fallback + `/api/` proxied to `backend:3001` |
+
+### Production
+
+```bash
+# 1. Copy and fill in secrets
+cp .env.example .env
+# Edit .env — set POSTGRES_PASSWORD, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET
+
+# 2. Build and start all services
+docker compose up -d --build
+
+# App is available at http://localhost
+```
+
+### Development (DB via Docker, code runs locally)
+
+```bash
+# Start PostgreSQL only
+docker compose -f docker-compose.dev.yml up -d
+
+# Run backend and frontend locally
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+### Root `.env` variables for Docker Compose
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_USER` | `postgres` | Database user |
+| `POSTGRES_PASSWORD` | `change_me` | Database password |
+| `POSTGRES_DB` | `mybudget` | Database name |
+| `ACCESS_TOKEN_SECRET` | — | JWT access token secret |
+| `REFRESH_TOKEN_SECRET` | — | JWT refresh token secret |
+
+> The `backend` service waits for the `db` healthcheck before starting, so `initSchema()` never races against a cold Postgres.
 
 ---
 

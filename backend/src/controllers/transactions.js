@@ -1,110 +1,91 @@
-import { getDb } from '../db/schema.js';
+import pool from '../db/pool.js';
 
-export function listTransactions(req, res) {
-  const db = getDb();
+const TX_SELECT = `
+  SELECT t.*,
+    a.name  AS account_name,  a.color AS account_color,
+    c.name  AS category_name, c.color AS category_color, c.icon AS category_icon
+  FROM transactions t
+  LEFT JOIN accounts   a ON a.id = t.account_id
+  LEFT JOIN categories c ON c.id = t.category_id
+`;
+
+export async function listTransactions(req, res) {
   const { account_id, category_id, type, month, year, limit = 100, offset = 0 } = req.query;
+
   const conditions = [];
   const params = [];
+  const add = (val) => { params.push(val); return `$${params.length}`; };
 
-  if (account_id) { conditions.push('t.account_id = ?'); params.push(account_id); }
-  if (category_id) { conditions.push('t.category_id = ?'); params.push(category_id); }
-  if (type) { conditions.push('t.type = ?'); params.push(type); }
+  if (account_id)  conditions.push(`t.account_id = ${add(account_id)}`);
+  if (category_id) conditions.push(`t.category_id = ${add(category_id)}`);
+  if (type)        conditions.push(`t.type = ${add(type)}`);
   if (month && year) {
-    conditions.push("strftime('%m', t.date) = ? AND strftime('%Y', t.date) = ?");
-    params.push(String(month).padStart(2, '0'), String(year));
+    conditions.push(`TO_CHAR(t.date, 'MM') = ${add(String(month).padStart(2, '0'))}`);
+    conditions.push(`TO_CHAR(t.date, 'YYYY') = ${add(String(year))}`);
   } else if (year) {
-    conditions.push("strftime('%Y', t.date) = ?");
-    params.push(String(year));
+    conditions.push(`TO_CHAR(t.date, 'YYYY') = ${add(String(year))}`);
   }
 
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
-  const query = `
-    SELECT t.*,
-      a.name AS account_name, a.color AS account_color,
-      c.name AS category_name, c.color AS category_color, c.icon AS category_icon
-    FROM transactions t
-    LEFT JOIN accounts a ON a.id = t.account_id
-    LEFT JOIN categories c ON c.id = t.category_id
-    ${where}
-    ORDER BY t.date DESC, t.created_at DESC
-    LIMIT ? OFFSET ?
-  `;
-  params.push(Number(limit), Number(offset));
 
-  const countQuery = `SELECT COUNT(*) AS total FROM transactions t ${where}`;
-  const { total } = db.prepare(countQuery).get(...params.slice(0, -2));
-  const rows = db.prepare(query).all(...params);
+  const countResult = await pool.query(
+    `SELECT COUNT(*) AS total FROM transactions t ${where}`,
+    params
+  );
+  const total = parseInt(countResult.rows[0].total);
+
+  params.push(Number(limit));
+  params.push(Number(offset));
+
+  const { rows } = await pool.query(
+    `${TX_SELECT} ${where} ORDER BY t.date DESC, t.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
 
   res.json({ data: rows, total, limit: Number(limit), offset: Number(offset) });
 }
 
-export function getTransaction(req, res) {
-  const db = getDb();
-  const tx = db.prepare(`
-    SELECT t.*,
-      a.name AS account_name,
-      c.name AS category_name, c.color AS category_color, c.icon AS category_icon
-    FROM transactions t
-    LEFT JOIN accounts a ON a.id = t.account_id
-    LEFT JOIN categories c ON c.id = t.category_id
-    WHERE t.id = ?
-  `).get(req.params.id);
-  if (!tx) return res.status(404).json({ error: 'Transaction not found' });
-  res.json(tx);
+export async function getTransaction(req, res) {
+  const { rows } = await pool.query(`${TX_SELECT} WHERE t.id = $1`, [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Transaction not found' });
+  res.json(rows[0]);
 }
 
-export function createTransaction(req, res) {
-  const db = getDb();
+export async function createTransaction(req, res) {
   const { account_id, category_id, amount, type, description = '', date, notes = '' } = req.body;
   if (!account_id || !amount || !type || !date) {
     return res.status(400).json({ error: 'account_id, amount, type, and date are required' });
   }
-  const result = db.prepare(`
-    INSERT INTO transactions (account_id, category_id, amount, type, description, date, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(account_id, category_id || null, Math.abs(amount), type, description, date, notes);
-
-  const tx = db.prepare(`
-    SELECT t.*, a.name AS account_name, c.name AS category_name, c.color AS category_color, c.icon AS category_icon
-    FROM transactions t
-    LEFT JOIN accounts a ON a.id = t.account_id
-    LEFT JOIN categories c ON c.id = t.category_id
-    WHERE t.id = ?
-  `).get(result.lastInsertRowid);
-  res.status(201).json(tx);
+  const { rows: ins } = await pool.query(
+    `INSERT INTO transactions (account_id, category_id, amount, type, description, date, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+    [account_id, category_id || null, Math.abs(amount), type, description, date, notes]
+  );
+  const { rows } = await pool.query(`${TX_SELECT} WHERE t.id = $1`, [ins[0].id]);
+  res.status(201).json(rows[0]);
 }
 
-export function updateTransaction(req, res) {
-  const db = getDb();
+export async function updateTransaction(req, res) {
   const { account_id, category_id, amount, type, description, date, notes } = req.body;
-  const tx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(req.params.id);
-  if (!tx) return res.status(404).json({ error: 'Transaction not found' });
-
-  db.prepare(`
+  const { rows: existing } = await pool.query('SELECT id FROM transactions WHERE id = $1', [req.params.id]);
+  if (!existing[0]) return res.status(404).json({ error: 'Transaction not found' });
+  await pool.query(`
     UPDATE transactions SET
-      account_id = COALESCE(?, account_id),
-      category_id = COALESCE(?, category_id),
-      amount = COALESCE(?, amount),
-      type = COALESCE(?, type),
-      description = COALESCE(?, description),
-      date = COALESCE(?, date),
-      notes = COALESCE(?, notes)
-    WHERE id = ?
-  `).run(account_id, category_id, amount ? Math.abs(amount) : null, type, description, date, notes, req.params.id);
-
-  res.json(db.prepare(`
-    SELECT t.*, a.name AS account_name, c.name AS category_name, c.color AS category_color, c.icon AS category_icon
-    FROM transactions t
-    LEFT JOIN accounts a ON a.id = t.account_id
-    LEFT JOIN categories c ON c.id = t.category_id
-    WHERE t.id = ?
-  `).get(req.params.id));
+      account_id  = COALESCE($1, account_id),
+      category_id = COALESCE($2, category_id),
+      amount      = COALESCE($3, amount),
+      type        = COALESCE($4, type),
+      description = COALESCE($5, description),
+      date        = COALESCE($6, date),
+      notes       = COALESCE($7, notes)
+    WHERE id = $8
+  `, [account_id, category_id, amount ? Math.abs(amount) : null, type, description, date, notes, req.params.id]);
+  const { rows } = await pool.query(`${TX_SELECT} WHERE t.id = $1`, [req.params.id]);
+  res.json(rows[0]);
 }
 
-export function deleteTransaction(req, res) {
-  const db = getDb();
-  const tx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(req.params.id);
-  if (!tx) return res.status(404).json({ error: 'Transaction not found' });
-  db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
+export async function deleteTransaction(req, res) {
+  const { rows } = await pool.query('DELETE FROM transactions WHERE id = $1 RETURNING id', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Transaction not found' });
   res.status(204).end();
 }
