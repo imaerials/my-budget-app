@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, Wallet } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { api } from '../api/client';
@@ -16,14 +16,15 @@ const MONTHS = [
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
 ];
 
-function BudgetProgressBar({ spent, budget, color }) {
+function BudgetProgressBar({ spent, budget, color, currency = 'USD' }) {
+  const fmt = (n) => formatCurrency(n, currency);
   const pct = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
   const over = spent > budget;
   return (
     <div className="mt-2">
       <div className="flex justify-between text-xs text-gray-500 mb-1">
-        <span>Gastado: <strong style={{ color: over ? '#ef4444' : color }}>{formatCurrency(spent)}</strong></span>
-        <span>Restante: <strong className={over ? 'text-red-500' : 'text-emerald-600'}>{formatCurrency(Math.max(budget - spent, 0))}</strong></span>
+        <span>Gastado: <strong style={{ color: over ? '#ef4444' : color }}>{fmt(spent)}</strong></span>
+        <span>Restante: <strong className={over ? 'text-red-500' : 'text-emerald-600'}>{fmt(Math.max(budget - spent, 0))}</strong></span>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2">
         <div
@@ -31,7 +32,7 @@ function BudgetProgressBar({ spent, budget, color }) {
           style={{ width: `${pct}%`, backgroundColor: over ? '#ef4444' : color }}
         />
       </div>
-      {over && <p className="text-xs text-red-500 mt-0.5">Excedido por {formatCurrency(spent - budget)}</p>}
+      {over && <p className="text-xs text-red-500 mt-0.5">Excedido por {fmt(spent - budget)}</p>}
     </div>
   );
 }
@@ -44,6 +45,15 @@ export default function Budgets() {
   const [form, setForm] = useState({ category_id: '', amount: '', month: curMonth, year: curYear });
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [currency, setCurrency] = useState('USD');
+
+  const { data: accounts } = useApi(() => api.getAccounts(), []);
+  const currencies = [...new Set((accounts || []).map((a) => a.currency))].sort();
+  useEffect(() => {
+    if (currencies.length && !currencies.includes(currency)) setCurrency(currencies[0]);
+  }, [currencies.join(',')]); // eslint-disable-line
+
+  const fmt = (n) => formatCurrency(n, currency);
 
   const { data: budgets, loading, refetch } = useApi(
     () => api.getBudgets({ month: filterMonth, year: filterYear }),
@@ -89,10 +99,20 @@ export default function Budgets() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Presupuestos</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {MONTHS[filterMonth - 1]} {filterYear} — Presupuestado: <strong>{formatCurrency(totalBudgeted)}</strong>
+            {MONTHS[filterMonth - 1]} {filterYear} — Presupuestado: <strong>{fmt(totalBudgeted)}</strong>
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {currencies.length > 1 && (
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+              {currencies.map((c) => (
+                <button key={c} onClick={() => setCurrency(c)}
+                  className={clsx('px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                    currency === c ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  )}>{c}</button>
+              ))}
+            </div>
+          )}
           <Select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="w-36">
             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </Select>
@@ -111,18 +131,18 @@ export default function Budgets() {
           <div className="flex items-center gap-8 flex-wrap">
             <div>
               <p className="text-xs text-gray-400">Total presupuestado</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(totalBudgeted)}</p>
+              <p className="text-xl font-bold text-gray-900">{fmt(totalBudgeted)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Total gastado</p>
               <p className={clsx('text-xl font-bold', totalSpent > totalBudgeted ? 'text-red-500' : 'text-gray-900')}>
-                {formatCurrency(totalSpent)}
+                {fmt(totalSpent)}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Disponible</p>
               <p className={clsx('text-xl font-bold', totalBudgeted - totalSpent < 0 ? 'text-red-500' : 'text-emerald-600')}>
-                {formatCurrency(totalBudgeted - totalSpent)}
+                {fmt(totalBudgeted - totalSpent)}
               </p>
             </div>
             <div className="flex-1 min-w-[200px]">
@@ -164,8 +184,8 @@ export default function Budgets() {
                   <Trash2 size={13} className="text-red-400" />
                 </Button>
               </div>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(b.amount)}</p>
-              <BudgetProgressBar spent={b.spent} budget={b.amount} color={b.category_color} />
+              <p className="text-xl font-bold text-gray-900">{fmt(b.amount)}</p>
+              <BudgetProgressBar spent={b.spent} budget={b.amount} color={b.category_color} currency={currency} />
             </Card>
           ))}
         </div>
