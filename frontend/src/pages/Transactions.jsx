@@ -172,19 +172,21 @@ export default function Transactions() {
 
       {/* Filters */}
       <Card className="!p-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="w-36">
-            {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </Select>
-          <Select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))} className="w-24">
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </Select>
-          <Select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="w-32">
-            <option value="">Todos</option>
-            <option value="income">Ingresos</option>
-            <option value="expense">Gastos</option>
-          </Select>
-          <div className="relative flex-1 min-w-[160px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="w-32">
+              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </Select>
+            <Select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))} className="w-22">
+              {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </Select>
+            <Select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="w-28">
+              <option value="">Todos</option>
+              <option value="income">Ingresos</option>
+              <option value="expense">Gastos</option>
+            </Select>
+          </div>
+          <div className="relative flex-1 min-w-[140px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -193,69 +195,105 @@ export default function Transactions() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex gap-4 ml-auto text-sm">
-            <span className="text-emerald-600 font-semibold">+{formatCurrency(totals.income)}</span>
-            <span className="text-red-500 font-semibold">-{formatCurrency(totals.expense)}</span>
+          <div className="flex gap-3 text-sm font-semibold ml-auto">
+            <span className="text-emerald-600">+{formatCurrency(totals.income)}</span>
+            <span className="text-red-500">-{formatCurrency(totals.expense)}</span>
           </div>
         </div>
       </Card>
 
-      {/* Table */}
-      <Card className="!p-0 overflow-hidden">
-        {loading ? <PageLoader /> : txList.length === 0 ? (
-          <EmptyState
-            icon={ArrowLeftRight}
-            title="Sin transacciones"
-            description="Agrega tu primera transacción."
-            action={<Button onClick={openCreate}><Plus size={14} />Agregar</Button>}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-3 text-left">Fecha</th>
-                  <th className="px-4 py-3 text-left">Descripción</th>
-                  <th className="px-4 py-3 text-left">Categoría</th>
-                  <th className="px-4 py-3 text-left">Cuenta</th>
-                  <th className="px-4 py-3 text-left">Tipo</th>
-                  <th className="px-4 py-3 text-right">Monto</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {txList.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{tx.description || '—'}</td>
-                    <td className="px-4 py-3">
-                      {tx.category_name ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
-                          style={{ backgroundColor: (tx.category_color || '#6366f1') + '20', color: tx.category_color || '#6366f1' }}
-                        >
-                          {tx.category_name}
-                        </span>
-                      ) : <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">{tx.account_name}</td>
-                    <td className="px-4 py-3"><TypeBadge type={tx.type} /></td>
-                    <td className={`px-4 py-3 text-right font-semibold ${tx.type === 'income' ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(tx)}><Pencil size={13} /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(tx)}><Trash2 size={13} className="text-red-400" /></Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* List */}
+      {loading ? <PageLoader /> : txList.length === 0 ? (
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="Sin transacciones"
+          description="Agrega tu primera transacción."
+          action={<Button onClick={openCreate}><Plus size={14} />Agregar</Button>}
+        />
+      ) : (
+        <>
+          {/* Mobile: card list */}
+          <div className="sm:hidden space-y-2">
+            {txList.map((tx) => (
+              <div
+                key={tx.id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center gap-3"
+              >
+                {/* Color indicator */}
+                <div
+                  className="w-1 self-stretch rounded-full shrink-0"
+                  style={{ backgroundColor: tx.type === 'income' ? '#22c55e' : '#ef4444' }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{tx.description || '—'}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    {formatDate(tx.date)}
+                    {tx.category_name && <> · <span style={{ color: tx.category_color || '#6366f1' }}>{tx.category_name}</span></>}
+                    {tx.account_name && <> · {tx.account_name}</>}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`text-sm font-bold ${tx.type === 'income' ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  </p>
+                  <div className="flex gap-1 mt-1 justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(tx)}><Pencil size={13} /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(tx)}><Trash2 size={13} className="text-red-400" /></Button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </Card>
+
+          {/* Desktop: table */}
+          <Card className="!p-0 overflow-hidden hidden sm:block">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Fecha</th>
+                    <th className="px-4 py-3 text-left">Descripción</th>
+                    <th className="px-4 py-3 text-left">Categoría</th>
+                    <th className="px-4 py-3 text-left">Cuenta</th>
+                    <th className="px-4 py-3 text-left">Tipo</th>
+                    <th className="px-4 py-3 text-right">Monto</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {txList.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{tx.description || '—'}</td>
+                      <td className="px-4 py-3">
+                        {tx.category_name ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{ backgroundColor: (tx.category_color || '#6366f1') + '20', color: tx.category_color || '#6366f1' }}
+                          >
+                            {tx.category_name}
+                          </span>
+                        ) : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{tx.account_name}</td>
+                      <td className="px-4 py-3"><TypeBadge type={tx.type} /></td>
+                      <td className={`px-4 py-3 text-right font-semibold ${tx.type === 'income' ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(tx)}><Pencil size={13} /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(tx)}><Trash2 size={13} className="text-red-400" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar transacción' : 'Nueva transacción'}>
