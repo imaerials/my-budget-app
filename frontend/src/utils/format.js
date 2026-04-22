@@ -1,4 +1,5 @@
 export function formatCurrency(amount, currency = 'USD') {
+  currency = currency || 'USD';
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency,

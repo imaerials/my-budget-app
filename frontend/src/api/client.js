@@ -97,7 +97,7 @@ export const api = {
   getDashboard: () => request('/reports/dashboard'),
   getMonthlySummary: (params) => request('/reports/monthly' + toQuery(params)),
   getCategoryBreakdown: (params) => request('/reports/categories' + toQuery(params)),
-  getTrend: () => request('/reports/trend'),
+  getTrend: (params) => request('/reports/trend' + toQuery(params)),
 };
 
 function toQuery(params) {
