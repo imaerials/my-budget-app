@@ -34,8 +34,8 @@ export default function Navbar() {
           <span className="font-bold text-gray-900 text-sm">MyBudget</span>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex items-center gap-0.5 overflow-x-auto flex-1">
+        {/* Nav links — desktop only */}
+        <nav className="hidden md:flex items-center gap-0.5 flex-1">
           {links.map(({ to, label, icon: Icon, exact }) => (
             <NavLink
               key={to}
@@ -56,12 +56,15 @@ export default function Navbar() {
           ))}
         </nav>
 
+        {/* Spacer on mobile */}
+        <div className="flex-1 md:hidden" />
+
         {/* User section */}
         {user && (
           <div className="flex items-center gap-2 ml-2 shrink-0">
-            <div className="flex items-center gap-1.5 text-sm text-gray-600 px-2">
+            <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 px-2">
               <User size={14} className="text-gray-400" />
-              <span className="hidden sm:inline max-w-[120px] truncate">{user.name || user.email}</span>
+              <span className="max-w-[120px] truncate">{user.name || user.email}</span>
             </div>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
               <LogOut size={14} />

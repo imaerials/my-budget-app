@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/layout/Navbar';
+import BottomNav from './components/layout/BottomNav';
 import { Spinner } from './components/ui/Spinner';
 import Home from './pages/Home';
 import Accounts from './pages/Accounts';
@@ -50,7 +51,7 @@ function AppRoutes() {
           <ProtectedRoute>
             <div className="min-h-screen bg-slate-100">
               <Navbar />
-              <main>
+              <main className="pb-20 md:pb-0">
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/transactions" element={<Transactions />} />
@@ -61,6 +62,7 @@ function AppRoutes() {
                   <Route path="/tools" element={<Tools />} />
                 </Routes>
               </main>
+              <BottomNav />
             </div>
           </ProtectedRoute>
         }
