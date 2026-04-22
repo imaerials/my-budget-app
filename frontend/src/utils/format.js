@@ -7,6 +7,12 @@ export function formatCurrency(amount, currency = 'USD') {
   }).format(amount);
 }
 
+export function formatDateShort(dateStr) {
+  if (!dateStr) return '';
+  const [, m, d] = dateStr.split('-');
+  return `${d}/${m}`;
+}
+
 export function formatDate(dateStr) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
