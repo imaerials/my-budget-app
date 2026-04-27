@@ -7,13 +7,16 @@ import * as reports from '../controllers/reports.js';
 import * as auth from '../controllers/auth.js';
 import * as splits from '../controllers/splits.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { authLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
+router.use(apiLimiter);
+
 // ── Public auth routes ────────────────────────────────────────────────────────
-router.post('/auth/register', auth.register);
-router.post('/auth/login', auth.login);
-router.post('/auth/refresh', auth.refresh);
+router.post('/auth/register', authLimiter, auth.register);
+router.post('/auth/login', authLimiter, auth.login);
+router.post('/auth/refresh', authLimiter, auth.refresh);
 router.post('/auth/logout', auth.logout);
 
 // ── All routes below require a valid access token ────────────────────────────
