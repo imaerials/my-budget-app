@@ -4,6 +4,31 @@ import { randomUUID } from 'crypto';
 import pool from '../db/pool.js';
 
 const ACCESS_SECRET  = process.env.ACCESS_TOKEN_SECRET  || 'access-secret-change-in-production';
+
+const DEFAULT_CATEGORIES = [
+  { name: 'Alimentación',    type: 'expense', color: '#f97316', icon: 'utensils' },
+  { name: 'Transporte',      type: 'expense', color: '#3b82f6', icon: 'car' },
+  { name: 'Vivienda',        type: 'expense', color: '#8b5cf6', icon: 'home' },
+  { name: 'Salud',           type: 'expense', color: '#ef4444', icon: 'heart' },
+  { name: 'Entretenimiento', type: 'expense', color: '#ec4899', icon: 'film' },
+  { name: 'Educación',       type: 'expense', color: '#06b6d4', icon: 'book' },
+  { name: 'Ropa',            type: 'expense', color: '#f59e0b', icon: 'shirt' },
+  { name: 'Servicios',       type: 'expense', color: '#64748b', icon: 'zap' },
+  { name: 'Otros gastos',    type: 'expense', color: '#94a3b8', icon: 'more-horizontal' },
+  { name: 'Salario',         type: 'income',  color: '#22c55e', icon: 'briefcase' },
+  { name: 'Freelance',       type: 'income',  color: '#10b981', icon: 'laptop' },
+  { name: 'Inversiones',     type: 'income',  color: '#84cc16', icon: 'trending-up' },
+  { name: 'Otros ingresos',  type: 'income',  color: '#a3e635', icon: 'plus-circle' },
+];
+
+async function seedDefaultCategories(userId) {
+  for (const cat of DEFAULT_CATEGORIES) {
+    await pool.query(
+      `INSERT INTO categories (user_id, name, type, color, icon) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+      [userId, cat.name, cat.type, cat.color, cat.icon]
+    );
+  }
+}
 const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || 'refresh-secret-change-in-production';
 const REFRESH_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -43,6 +68,9 @@ export async function register(req, res) {
     [name.trim(), email.toLowerCase(), password_hash]
   );
   const user = rows[0];
+
+  await seedDefaultCategories(user.id);
+
   const accessToken  = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 

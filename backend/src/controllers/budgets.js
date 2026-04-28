@@ -2,13 +2,13 @@ import pool from '../db/pool.js';
 
 export async function listBudgets(req, res) {
   const { month, year } = req.query;
-  const conditions = [];
-  const params = [];
+  const conditions = ['b.user_id = $1'];
+  const params = [req.user.id];
   const add = (v) => { params.push(v); return `$${params.length}`; };
 
   if (month) conditions.push(`b.month = ${add(Number(month))}`);
   if (year)  conditions.push(`b.year = ${add(Number(year))}`);
-  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+  const where = 'WHERE ' + conditions.join(' AND ');
 
   const { rows } = await pool.query(`
     SELECT b.*,
@@ -19,7 +19,9 @@ export async function listBudgets(req, res) {
       COALESCE((
         SELECT SUM(t.amount)
         FROM transactions t
+        JOIN accounts a ON a.id = t.account_id
         WHERE t.category_id = b.category_id
+          AND a.user_id = b.user_id
           AND TO_CHAR(t.date, 'MM') = LPAD(b.month::text, 2, '0')
           AND TO_CHAR(t.date, 'YYYY') = b.year::text
           AND t.type = 'expense'
@@ -38,11 +40,11 @@ export async function upsertBudget(req, res) {
     return res.status(400).json({ error: 'category_id, amount, month, and year are required' });
   }
   const { rows } = await pool.query(`
-    INSERT INTO budgets (category_id, amount, month, year)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (category_id, month, year) DO UPDATE SET amount = EXCLUDED.amount
+    INSERT INTO budgets (user_id, category_id, amount, month, year)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (user_id, category_id, month, year) DO UPDATE SET amount = EXCLUDED.amount
     RETURNING id
-  `, [category_id, amount, month, year]);
+  `, [req.user.id, category_id, amount, month, year]);
 
   const { rows: result } = await pool.query(`
     SELECT b.*, c.name AS category_name, c.color AS category_color, c.icon AS category_icon
@@ -53,7 +55,10 @@ export async function upsertBudget(req, res) {
 }
 
 export async function deleteBudget(req, res) {
-  const { rows } = await pool.query('DELETE FROM budgets WHERE id = $1 RETURNING id', [req.params.id]);
+  const { rows } = await pool.query(
+    'DELETE FROM budgets WHERE id = $1 AND user_id = $2 RETURNING id',
+    [req.params.id, req.user.id]
+  );
   if (!rows[0]) return res.status(404).json({ error: 'Budget not found' });
   res.status(204).end();
 }

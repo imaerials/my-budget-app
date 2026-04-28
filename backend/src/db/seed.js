@@ -1,7 +1,28 @@
-import { initSchema } from './schema.js';
+// Dev seed: creates a test user and populates default categories + one account.
+// Run with: node src/db/seed.js
+import bcrypt from 'bcryptjs';
+import { initSchema, runMigrations } from './schema.js';
 import pool from './pool.js';
 
 await initSchema();
+await runMigrations();
+
+const email = 'demo@example.com';
+const password_hash = bcrypt.hashSync('password123', 12);
+
+const { rows: existing } = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+let userId;
+if (existing[0]) {
+  userId = existing[0].id;
+  console.log(`Using existing user: ${email} (id=${userId})`);
+} else {
+  const { rows } = await pool.query(
+    `INSERT INTO users (name, email, password_hash) VALUES ($1,$2,$3) RETURNING id`,
+    ['Demo User', email, password_hash]
+  );
+  userId = rows[0].id;
+  console.log(`Created user: ${email} (id=${userId}), password: password123`);
+}
 
 const categories = [
   { name: 'Alimentación',    type: 'expense', color: '#f97316', icon: 'utensils' },
@@ -21,18 +42,16 @@ const categories = [
 
 for (const cat of categories) {
   await pool.query(
-    `INSERT INTO categories (name, type, color, icon)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT DO NOTHING`,
-    [cat.name, cat.type, cat.color, cat.icon]
+    `INSERT INTO categories (user_id, name, type, color, icon) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+    [userId, cat.name, cat.type, cat.color, cat.icon]
   );
 }
 
-const { rows } = await pool.query('SELECT id FROM accounts LIMIT 1');
-if (rows.length === 0) {
+const { rows: accts } = await pool.query('SELECT id FROM accounts WHERE user_id = $1 LIMIT 1', [userId]);
+if (!accts[0]) {
   await pool.query(
-    `INSERT INTO accounts (name, type, balance, currency, color)
-     VALUES ('Cuenta Principal', 'checking', 0, 'USD', '#6366f1')`
+    `INSERT INTO accounts (user_id, name, type, balance, currency, color) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [userId, 'Cuenta Principal', 'checking', 0, 'USD', '#6366f1']
   );
 }
 

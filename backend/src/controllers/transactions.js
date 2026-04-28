@@ -12,8 +12,8 @@ const TX_SELECT = `
 export async function listTransactions(req, res) {
   const { account_id, category_id, type, month, year, limit = 100, offset = 0 } = req.query;
 
-  const conditions = [];
-  const params = [];
+  const conditions = ['a.user_id = $1'];
+  const params = [req.user.id];
   const add = (val) => { params.push(val); return `$${params.length}`; };
 
   if (account_id)  conditions.push(`t.account_id = ${add(account_id)}`);
@@ -26,10 +26,10 @@ export async function listTransactions(req, res) {
     conditions.push(`TO_CHAR(t.date, 'YYYY') = ${add(String(year))}`);
   }
 
-  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+  const where = 'WHERE ' + conditions.join(' AND ');
 
   const countResult = await pool.query(
-    `SELECT COUNT(*) AS total FROM transactions t ${where}`,
+    `SELECT COUNT(*) AS total FROM transactions t LEFT JOIN accounts a ON a.id = t.account_id ${where}`,
     params
   );
   const total = parseInt(countResult.rows[0].total);
@@ -46,7 +46,10 @@ export async function listTransactions(req, res) {
 }
 
 export async function getTransaction(req, res) {
-  const { rows } = await pool.query(`${TX_SELECT} WHERE t.id = $1`, [req.params.id]);
+  const { rows } = await pool.query(
+    `${TX_SELECT} WHERE t.id = $1 AND a.user_id = $2`,
+    [req.params.id, req.user.id]
+  );
   if (!rows[0]) return res.status(404).json({ error: 'Transaction not found' });
   res.json(rows[0]);
 }
@@ -56,6 +59,12 @@ export async function createTransaction(req, res) {
   if (!account_id || !amount || !type || !date) {
     return res.status(400).json({ error: 'account_id, amount, type, and date are required' });
   }
+  const { rows: acct } = await pool.query(
+    'SELECT id FROM accounts WHERE id = $1 AND user_id = $2',
+    [account_id, req.user.id]
+  );
+  if (!acct[0]) return res.status(404).json({ error: 'Account not found' });
+
   const { rows: ins } = await pool.query(
     `INSERT INTO transactions (account_id, category_id, amount, type, description, date, notes)
      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
@@ -67,8 +76,20 @@ export async function createTransaction(req, res) {
 
 export async function updateTransaction(req, res) {
   const { account_id, category_id, amount, type, description, date, notes } = req.body;
-  const { rows: existing } = await pool.query('SELECT id FROM transactions WHERE id = $1', [req.params.id]);
+  const { rows: existing } = await pool.query(
+    'SELECT t.id FROM transactions t JOIN accounts a ON a.id = t.account_id WHERE t.id = $1 AND a.user_id = $2',
+    [req.params.id, req.user.id]
+  );
   if (!existing[0]) return res.status(404).json({ error: 'Transaction not found' });
+
+  if (account_id) {
+    const { rows: acct } = await pool.query(
+      'SELECT id FROM accounts WHERE id = $1 AND user_id = $2',
+      [account_id, req.user.id]
+    );
+    if (!acct[0]) return res.status(404).json({ error: 'Account not found' });
+  }
+
   await pool.query(`
     UPDATE transactions SET
       account_id  = COALESCE($1, account_id),
@@ -85,7 +106,11 @@ export async function updateTransaction(req, res) {
 }
 
 export async function deleteTransaction(req, res) {
-  const { rows } = await pool.query('DELETE FROM transactions WHERE id = $1 RETURNING id', [req.params.id]);
+  const { rows } = await pool.query(
+    `DELETE FROM transactions WHERE id = $1
+     AND account_id IN (SELECT id FROM accounts WHERE user_id = $2) RETURNING id`,
+    [req.params.id, req.user.id]
+  );
   if (!rows[0]) return res.status(404).json({ error: 'Transaction not found' });
   res.status(204).end();
 }

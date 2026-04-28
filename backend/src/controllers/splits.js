@@ -60,6 +60,17 @@ async function getGroupBalances(groupId) {
   return { memberBalances, suggestions: simplifyDebts(balances, members) };
 }
 
+// Resolves group by ID and verifies it belongs to the authenticated user.
+// Returns the group row or sends a 404 and returns null.
+async function resolveGroup(req, res) {
+  const { rows } = await pool.query(
+    'SELECT * FROM split_groups WHERE id = $1 AND user_id = $2',
+    [req.params.id, req.user.id]
+  );
+  if (!rows[0]) { res.status(404).json({ error: 'Group not found' }); return null; }
+  return rows[0];
+}
+
 // ── Groups ────────────────────────────────────────────────────────────────────
 
 export async function listGroups(req, res) {
@@ -68,15 +79,14 @@ export async function listGroups(req, res) {
       (SELECT COUNT(*) FROM split_members  WHERE group_id = g.id)::INTEGER AS member_count,
       (SELECT COUNT(*) FROM split_expenses WHERE group_id = g.id)::INTEGER AS expense_count,
       COALESCE((SELECT SUM(amount) FROM split_expenses WHERE group_id = g.id), 0) AS total_amount
-    FROM split_groups g ORDER BY g.created_at DESC
-  `);
+    FROM split_groups g WHERE g.user_id = $1 ORDER BY g.created_at DESC
+  `, [req.user.id]);
   res.json(rows);
 }
 
 export async function getGroup(req, res) {
-  const { rows: grp } = await pool.query('SELECT * FROM split_groups WHERE id = $1', [req.params.id]);
-  if (!grp[0]) return res.status(404).json({ error: 'Group not found' });
-  const group = grp[0];
+  const group = await resolveGroup(req, res);
+  if (!group) return;
 
   const [{ rows: members }, { rows: expenses }, { rows: settlements }] = await Promise.all([
     pool.query('SELECT * FROM split_members WHERE group_id = $1 ORDER BY name', [group.id]),
@@ -95,7 +105,6 @@ export async function getGroup(req, res) {
     `, [group.id]),
   ]);
 
-  // Attach shares to each expense
   const expensesWithShares = await Promise.all(
     expenses.map(async (e) => {
       const { rows: shares } = await pool.query(`
@@ -115,8 +124,8 @@ export async function createGroup(req, res) {
   const { name, description = '', currency = 'USD' } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
   const { rows } = await pool.query(
-    'INSERT INTO split_groups (name, description, currency) VALUES ($1,$2,$3) RETURNING *',
-    [name, description, currency]
+    'INSERT INTO split_groups (user_id, name, description, currency) VALUES ($1,$2,$3,$4) RETURNING *',
+    [req.user.id, name, description, currency]
   );
   res.status(201).json(rows[0]);
 }
@@ -128,14 +137,17 @@ export async function updateGroup(req, res) {
       name        = COALESCE($1, name),
       description = COALESCE($2, description),
       currency    = COALESCE($3, currency)
-    WHERE id = $4 RETURNING *
-  `, [name, description, currency, req.params.id]);
+    WHERE id = $4 AND user_id = $5 RETURNING *
+  `, [name, description, currency, req.params.id, req.user.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Group not found' });
   res.json(rows[0]);
 }
 
 export async function deleteGroup(req, res) {
-  const { rows } = await pool.query('DELETE FROM split_groups WHERE id = $1 RETURNING id', [req.params.id]);
+  const { rows } = await pool.query(
+    'DELETE FROM split_groups WHERE id = $1 AND user_id = $2 RETURNING id',
+    [req.params.id, req.user.id]
+  );
   if (!rows[0]) return res.status(404).json({ error: 'Group not found' });
   res.status(204).end();
 }
@@ -145,24 +157,26 @@ export async function deleteGroup(req, res) {
 export async function addMember(req, res) {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
-  const { rows: grp } = await pool.query('SELECT id FROM split_groups WHERE id = $1', [req.params.id]);
-  if (!grp[0]) return res.status(404).json({ error: 'Group not found' });
+  const group = await resolveGroup(req, res);
+  if (!group) return;
   const { rows } = await pool.query(
     'INSERT INTO split_members (group_id, name) VALUES ($1,$2) RETURNING *',
-    [req.params.id, name.trim()]
+    [group.id, name.trim()]
   );
   res.status(201).json(rows[0]);
 }
 
 export async function removeMember(req, res) {
+  const group = await resolveGroup(req, res);
+  if (!group) return;
   const { rows: member } = await pool.query(
     'SELECT id FROM split_members WHERE id = $1 AND group_id = $2',
-    [req.params.mid, req.params.id]
+    [req.params.mid, group.id]
   );
   if (!member[0]) return res.status(404).json({ error: 'Member not found' });
   const { rows: hasExp } = await pool.query(
     'SELECT id FROM split_expenses WHERE group_id = $1 AND paid_by = $2 LIMIT 1',
-    [req.params.id, req.params.mid]
+    [group.id, req.params.mid]
   );
   if (hasExp[0]) return res.status(400).json({ error: 'Cannot remove a member who has paid expenses' });
   await pool.query('DELETE FROM split_members WHERE id = $1', [req.params.mid]);
@@ -177,12 +191,12 @@ export async function addExpense(req, res) {
     return res.status(400).json({ error: 'description, amount, paid_by, and date are required' });
   }
 
-  const { rows: grp } = await pool.query('SELECT id FROM split_groups WHERE id = $1', [req.params.id]);
-  if (!grp[0]) return res.status(404).json({ error: 'Group not found' });
+  const group = await resolveGroup(req, res);
+  if (!group) return;
 
   const { rows: members } = await pool.query(
     'SELECT * FROM split_members WHERE group_id = $1',
-    [req.params.id]
+    [group.id]
   );
   if (members.length === 0) return res.status(400).json({ error: 'Group has no members' });
 
@@ -192,12 +206,12 @@ export async function addExpense(req, res) {
 
     const { rows: expRows } = await client.query(
       'INSERT INTO split_expenses (group_id, paid_by, description, amount, date) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-      [req.params.id, paid_by, description, Number(amount), date]
+      [group.id, paid_by, description, Number(amount), date]
     );
     const expenseId = expRows[0].id;
 
     if (split_type === 'equal') {
-      const share    = round2(Number(amount) / members.length);
+      const share     = round2(Number(amount) / members.length);
       const remainder = round2(Number(amount) - share * members.length);
       for (let i = 0; i < members.length; i++) {
         await client.query(
@@ -236,9 +250,11 @@ export async function addExpense(req, res) {
 }
 
 export async function deleteExpense(req, res) {
+  const group = await resolveGroup(req, res);
+  if (!group) return;
   const { rows } = await pool.query(
     'DELETE FROM split_expenses WHERE id = $1 AND group_id = $2 RETURNING id',
-    [req.params.eid, req.params.id]
+    [req.params.eid, group.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Expense not found' });
   res.status(204).end();
@@ -254,9 +270,11 @@ export async function addSettlement(req, res) {
   if (Number(from_member_id) === Number(to_member_id)) {
     return res.status(400).json({ error: 'from and to members must be different' });
   }
+  const group = await resolveGroup(req, res);
+  if (!group) return;
   const { rows: ins } = await pool.query(
     'INSERT INTO split_settlements (group_id, from_member_id, to_member_id, amount, date, note) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-    [req.params.id, from_member_id, to_member_id, Number(amount), date, note]
+    [group.id, from_member_id, to_member_id, Number(amount), date, note]
   );
   const { rows } = await pool.query(`
     SELECT ss.*, fm.name AS from_name, tm.name AS to_name
@@ -269,9 +287,11 @@ export async function addSettlement(req, res) {
 }
 
 export async function deleteSettlement(req, res) {
+  const group = await resolveGroup(req, res);
+  if (!group) return;
   const { rows } = await pool.query(
     'DELETE FROM split_settlements WHERE id = $1 AND group_id = $2 RETURNING id',
-    [req.params.sid, req.params.id]
+    [req.params.sid, group.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Settlement not found' });
   res.status(204).end();

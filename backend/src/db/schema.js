@@ -20,6 +20,7 @@ export async function initSchema() {
 
     CREATE TABLE IF NOT EXISTS accounts (
       id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name       TEXT NOT NULL,
       type       TEXT NOT NULL CHECK(type IN ('checking','savings','cash','credit','investment')),
       balance    NUMERIC(15,2) NOT NULL DEFAULT 0,
@@ -30,6 +31,7 @@ export async function initSchema() {
 
     CREATE TABLE IF NOT EXISTS categories (
       id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name       TEXT NOT NULL,
       type       TEXT NOT NULL CHECK(type IN ('income','expense')),
       color      TEXT NOT NULL DEFAULT '#6366f1',
@@ -51,16 +53,18 @@ export async function initSchema() {
 
     CREATE TABLE IF NOT EXISTS budgets (
       id          SERIAL PRIMARY KEY,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
       amount      NUMERIC(15,2) NOT NULL,
       month       INTEGER NOT NULL CHECK(month BETWEEN 1 AND 12),
       year        INTEGER NOT NULL,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(category_id, month, year)
+      UNIQUE(user_id, category_id, month, year)
     );
 
     CREATE TABLE IF NOT EXISTS split_groups (
       id          SERIAL PRIMARY KEY,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name        TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       currency    TEXT NOT NULL DEFAULT 'USD',
@@ -109,4 +113,34 @@ export async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_budgets_month_year    ON budgets(month, year);
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token  ON refresh_tokens(token);
   `);
+}
+
+// Adds user_id columns to tables that predate this migration.
+// Safe to run on both fresh and existing databases.
+export async function runMigrations() {
+  const alterations = [
+    `ALTER TABLE accounts     ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`,
+    `ALTER TABLE categories   ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`,
+    `ALTER TABLE budgets      ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`,
+    `ALTER TABLE split_groups ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`,
+    `CREATE INDEX IF NOT EXISTS idx_accounts_user     ON accounts(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_categories_user   ON categories(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_budgets_user      ON budgets(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_split_groups_user ON split_groups(user_id)`,
+  ];
+
+  for (const sql of alterations) {
+    await pool.query(sql);
+  }
+
+  // Replace old single-column unique constraint with one that includes user_id
+  await pool.query(`ALTER TABLE budgets DROP CONSTRAINT IF EXISTS budgets_category_id_month_year_key`);
+  const { rows } = await pool.query(
+    `SELECT 1 FROM pg_constraint WHERE conname = 'budgets_user_id_category_id_month_year_key'`
+  );
+  if (!rows.length) {
+    await pool.query(
+      `ALTER TABLE budgets ADD CONSTRAINT budgets_user_id_category_id_month_year_key UNIQUE (user_id, category_id, month, year)`
+    );
+  }
 }

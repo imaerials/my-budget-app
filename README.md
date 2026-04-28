@@ -24,7 +24,7 @@ A full-stack and easy personal finance management web application. Track income 
 - **Transactions** — Full CRUD with filters by month/year/type and real-time search. Shows period totals.
 - **Budgets** — Set spending limits per category for any given month. Progress bar with visual alert when the budget is exceeded.
 - **Accounts** — Multiple accounts (checking, savings, cash, credit, investment) with balance calculated from transactions.
-- **Categories** — Income and expense categories with customizable colors. Ships with 13 default categories.
+- **Categories** — Income and expense categories with customizable colors. 13 default categories are created automatically on registration.
 - **Reports** — Annual comparison with monthly table, savings rate, best month of the year, and category breakdown split by income/expenses.
 - **Tools: Expense Splitter** — Split bills among friends, trips, or flatmates. Tracks who paid what, calculates net balances, and suggests the minimum number of payments to settle all debts.
 
@@ -147,11 +147,13 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 > `backend/.env` is gitignored and never committed. `backend/.env.example` is the safe-to-commit template.
 
-### 3. Seed the database (default categories + account)
+### 3. Seed the database (optional — dev demo user)
 
 ```bash
 npm run seed
 ```
+
+Creates a demo user (`demo@example.com` / `password123`) with default categories and one account. Skip this step if you prefer to register normally via the UI — default categories are created automatically on sign-up.
 
 ### 4. Start in development mode
 
@@ -269,16 +271,18 @@ Authorization: Bearer <accessToken>
 
 ## Database
 
-PostgreSQL 16. The schema is created automatically on first run via `initSchema()` in `src/db/schema.js`.
+PostgreSQL 16. The schema is created automatically on first run via `initSchema()` in `src/db/schema.js`, followed by `runMigrations()` which safely adds any columns introduced after initial deployment.
+
+Every user's data is fully isolated — all resource tables carry a `user_id` foreign key and every query is scoped to the authenticated user.
 
 ```
 users              — id, name, email, password_hash, created_at
 refresh_tokens     — id, user_id, token, expires_at, created_at
-accounts           — id, name, type, balance, currency, color
-categories         — id, name, type, color, icon
+accounts           — id, user_id, name, type, balance, currency, color
+categories         — id, user_id, name, type, color, icon
 transactions       — id, account_id, category_id, amount, type, description, date, notes
-budgets            — id, category_id, amount, month, year  (unique per category + month + year)
-split_groups       — id, name, description, currency, created_at
+budgets            — id, user_id, category_id, amount, month, year  (unique per user + category + month + year)
+split_groups       — id, user_id, name, description, currency, created_at
 split_members      — id, group_id, name, created_at
 split_expenses     — id, group_id, paid_by, description, amount, date, created_at
 split_shares       — id, expense_id, member_id, amount  (unique per expense + member)
