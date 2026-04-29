@@ -35,7 +35,7 @@ export default function Profile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!name.trim()) { setError('Name cannot be empty'); return; }
+    if (!name.trim()) { setError('El nombre no puede estar vacío'); return; }
     setSaving(true);
     setError('');
     try {
@@ -59,7 +59,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Profile</h1>
+      <h1 className="text-xl font-bold text-gray-900">Perfil</h1>
 
       <Card>
         <div className="flex items-center gap-5">
@@ -73,10 +73,10 @@ export default function Profile() {
 
       <Card className="space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Personal info</h2>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Información personal</h2>
           {!editing && (
             <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-              <Pencil size={14} /> Edit
+              <Pencil size={14} /> Editar
             </Button>
           )}
         </div>
@@ -84,7 +84,7 @@ export default function Profile() {
         {editing ? (
           <form onSubmit={handleSave} className="space-y-4">
             <Input
-              label="Name"
+              label="Nombre"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -92,18 +92,18 @@ export default function Profile() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={saving}>
-                <Check size={14} /> {saving ? 'Saving…' : 'Save'}
+                <Check size={14} /> {saving ? 'Guardando…' : 'Guardar'}
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={handleCancel}>
-                <X size={14} /> Cancel
+                <X size={14} /> Cancelar
               </Button>
             </div>
           </form>
         ) : (
           <dl className="space-y-4">
-            <InfoRow icon={User} label="Name" value={user.name || '—'} />
-            <InfoRow icon={Mail} label="Email" value={user.email} />
-            <InfoRow icon={Calendar} label="Member since" value={formatDate(user.created_at)} />
+            <InfoRow icon={User} label="Nombre" value={user.name || '—'} />
+            <InfoRow icon={Mail} label="Correo electrónico" value={user.email} />
+            <InfoRow icon={Calendar} label="Miembro desde" value={formatDate(user.created_at)} />
           </dl>
         )}
       </Card>

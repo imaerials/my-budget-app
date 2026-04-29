@@ -5,13 +5,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 
 const links = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/budgets', label: 'Budgets', icon: Wallet },
-  { to: '/accounts', label: 'Accounts', icon: TrendingUp },
-  { to: '/categories', label: 'Categories', icon: Tag },
-  { to: '/reports', label: 'Reports', icon: PieChart },
-  { to: '/tools', label: 'Tools', icon: Wrench },
+  { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
+  { to: '/transactions', label: 'Transacciones', icon: ArrowLeftRight },
+  { to: '/budgets', label: 'Presupuestos', icon: Wallet },
+  { to: '/accounts', label: 'Cuentas', icon: TrendingUp },
+  { to: '/categories', label: 'Categorías', icon: Tag },
+  { to: '/reports', label: 'Reportes', icon: PieChart },
+  { to: '/tools', label: 'Herramientas', icon: Wrench },
 ];
 
 export default function Navbar() {
@@ -68,7 +68,7 @@ export default function Navbar() {
             </Link>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
               <LogOut size={14} />
-              <span className="hidden sm:inline">Sign out</span>
+              <span className="hidden sm:inline">Salir</span>
             </Button>
           </div>
         )}

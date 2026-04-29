@@ -9,7 +9,7 @@ const links = [
   { to: '/accounts',     label: 'Cuentas',   icon: TrendingUp },
   { to: '/categories',   label: 'Categ.',    icon: Tag },
   { to: '/reports',      label: 'Reportes',  icon: PieChart },
-  { to: '/tools',        label: 'Tools',     icon: Wrench },
+  { to: '/tools',        label: 'Herram.',   icon: Wrench },
   { to: '/profile',      label: 'Perfil',    icon: User },
 ];
 
