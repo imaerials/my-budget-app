@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp, Wrench } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp, Wrench, User } from 'lucide-react';
 import clsx from 'clsx';
 
 const links = [
@@ -10,6 +10,7 @@ const links = [
   { to: '/categories',   label: 'Categ.',    icon: Tag },
   { to: '/reports',      label: 'Reportes',  icon: PieChart },
   { to: '/tools',        label: 'Tools',     icon: Wrench },
+  { to: '/profile',      label: 'Perfil',    icon: User },
 ];
 
 export default function BottomNav() {

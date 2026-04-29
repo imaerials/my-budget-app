@@ -10,6 +10,7 @@ import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Reports from './pages/Reports';
 import Tools from './pages/Tools';
+import Profile from './pages/Profile';
 import Login from './pages/Login';
 
 function ProtectedRoute({ children }) {
@@ -60,6 +61,7 @@ function AppRoutes() {
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/tools" element={<Tools />} />
+                  <Route path="/profile" element={<Profile />} />
                 </Routes>
               </main>
               <BottomNav />

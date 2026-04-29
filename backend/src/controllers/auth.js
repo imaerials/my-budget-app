@@ -159,3 +159,15 @@ export async function me(req, res) {
   if (!rows[0]) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
 }
+
+export async function updateProfile(req, res) {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+
+  const { rows } = await pool.query(
+    'UPDATE users SET name = $1 WHERE id = $2 RETURNING id, name, email, created_at',
+    [name.trim(), req.user.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+  res.json(rows[0]);
+}

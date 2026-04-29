@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, ArrowLeftRight, Wallet, Tag, PieChart, TrendingUp, LogOut, User, Wrench } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
@@ -62,10 +62,10 @@ export default function Navbar() {
         {/* User section */}
         {user && (
           <div className="flex items-center gap-2 ml-2 shrink-0">
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 px-2">
+            <Link to="/profile" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 px-2 hover:text-indigo-600 transition-colors">
               <User size={14} className="text-gray-400" />
               <span className="max-w-[120px] truncate">{user.name || user.email}</span>
-            </div>
+            </Link>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
               <LogOut size={14} />
               <span className="hidden sm:inline">Sign out</span>

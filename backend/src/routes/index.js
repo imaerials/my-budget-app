@@ -25,6 +25,9 @@ router.use(authenticateToken);
 // Current user
 router.get('/auth/me', auth.me);
 
+// Profile
+router.put('/profile', auth.updateProfile);
+
 // Accounts
 router.get('/accounts', accounts.listAccounts);
 router.get('/accounts/:id', accounts.getAccount);
