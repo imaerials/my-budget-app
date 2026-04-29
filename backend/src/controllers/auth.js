@@ -3,7 +3,11 @@ import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import pool from '../db/pool.js';
 
-const ACCESS_SECRET  = process.env.ACCESS_TOKEN_SECRET  || 'access-secret-change-in-production';
+if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
+  throw new Error('ACCESS_TOKEN_SECRET and REFRESH_TOKEN_SECRET must be set');
+}
+
+const ACCESS_SECRET  = process.env.ACCESS_TOKEN_SECRET;
 
 const DEFAULT_CATEGORIES = [
   { name: 'Alimentación',    type: 'expense', color: '#f97316', icon: 'utensils' },
@@ -29,7 +33,7 @@ async function seedDefaultCategories(userId) {
     );
   }
 }
-const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || 'refresh-secret-change-in-production';
+const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET;
 const REFRESH_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
 
 function generateAccessToken(user) {
